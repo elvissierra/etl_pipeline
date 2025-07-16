@@ -33,7 +33,7 @@ for td in transformed_data: # iterate over indexes
 import sqlite3
 
 def load_data(transformed_data, db_path): # parameters
-    conn = sqlite3.conn(db_path) # database connection
+    conn = sqlite3.connect(db_path) # database connection
     cursor = conn.cursor() # craeate connection
     #create database with fields
     cursor.execute = ("""
@@ -105,14 +105,14 @@ while True:
 
 # Automation- handle errors, retry operations, notify on errors ***  ***
 
-def run_etl_pipeline():
-    try:
-        data = d
-
-        transformed_data = transform_data(data)
-
-        load_data(transformed_data, "data/report_data.db")
-    except Exception as e:
-        print(f"Error ocurred: {e}")
-
-run_etl_pipeline()
+#def run_etl_pipeline():
+#    try:
+#        data = d
+#
+#        transformed_data = transform_data(data)
+#
+#        load_data(transformed_data, "data/report_data.db")
+#    except Exception as e:
+#        print(f"Error ocurred: {e}")
+#
+#run_etl_pipeline()
