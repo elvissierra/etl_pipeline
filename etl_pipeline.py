@@ -80,4 +80,6 @@ def run_etl_pipeline():
 if __name__ == "__main__":
     while True:
         run_etl_pipeline()
-        time.sleep(86400)  # Wait 24 hours before next run
+        time.sleep(86400)
+
+
