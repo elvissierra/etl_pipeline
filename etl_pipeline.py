@@ -7,6 +7,14 @@
 import pandas as pd
 import sqlite3
 import time
+import logging
+
+# Configure logging
+logging.basicConfig(
+    filename='etl_errors.log',
+    level=logging.ERROR,
+    format='%(asctime)s %(levelname)s:%(message)s'
+)
 
 # Data Extraction
 def extract_data(file_path="data/Test_Data.csv"):
@@ -71,11 +79,13 @@ def run_etl_pipeline():
     try:
         data = extract_data()
     except Exception as e:
+        logging.error(f"Error during extraction: {e}")
         print(f"Error during extraction: {e}")
         return
     try:
         transformed_data = transform_data(data)
     except Exception as e:
+        logging.error(f"Error during transformation: {e}")
         print(f"Error during transformation: {e}")
         return
     if transformed_data.empty:
@@ -85,6 +95,7 @@ def run_etl_pipeline():
         load_data(transformed_data, "data/report_data.db")
         print("ETL pipeline run successfully.")
     except Exception as e:
+        logging.error(f"Error during loading: {e}")
         print(f"Error during loading: {e}")
 
 # Scheduling (run once per day)
