@@ -27,7 +27,7 @@ def transform_data(df: pd.DataFrame) -> pd.DataFrame:
 def load_data(transformed_data, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    # Create table with correct SQL syntax
+    # Create table with SQL
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS report_data (
         place_id INTEGER PRIMARY KEY,
@@ -70,16 +70,25 @@ def load_data(transformed_data, db_path):
 def run_etl_pipeline():
     try:
         data = extract_data()
+    except Exception as e:
+        print(f"Error during extraction: {e}")
+        return
+    try:
         transformed_data = transform_data(data)
+    except Exception as e:
+        print(f"Error during transformation: {e}")
+        return
+    if transformed_data.empty:
+        print("No data to load after transformation. Skipping load step.")
+        return
+    try:
         load_data(transformed_data, "data/report_data.db")
         print("ETL pipeline run successfully.")
     except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"Error during loading: {e}")
 
 # Scheduling (run once per day)
 if __name__ == "__main__":
     while True:
         run_etl_pipeline()
         time.sleep(86400)
-
-
