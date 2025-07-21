@@ -3,7 +3,7 @@ import sqlite3
 from config import DB_PATH
 
 # Data Loading
-def load_data(transformed_data, db_path):
+def load_data(df, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     # Create table with SQL
@@ -20,7 +20,7 @@ def load_data(transformed_data, db_path):
     )
     """)
     # Insert data
-    for _, row in transformed_data.iterrows():
+    for _, row in df.iterrows():
         cursor.execute("""
             INSERT OR IGNORE INTO report_data (
                 place_id,

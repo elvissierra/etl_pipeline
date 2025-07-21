@@ -4,15 +4,11 @@
 #- Transformation- include cleaning(removing null values) and filtering (based on criteria)
 #- Data Destination- database, csv, or any other storage
 
-import pandas as pd
-import sqlite3
-import time
 import logging
 
 from extract import extract_data
 from transform import transform_data
 from load import load_data
-from logger import setup_logger
 
 
 # Pipeline Orchestration
