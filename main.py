@@ -1,4 +1,3 @@
-# Designing ETL Pipeline
 
 #- Data source- csv
 #- Transformation- include cleaning(removing null values) and filtering (based on criteria)
