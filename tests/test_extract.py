@@ -1,6 +1,6 @@
 import unittest
 import pandas as pd
-from extract import extract_data
+from etl.extract import extract_data
 
 
 class TextExtraction(unittest.TestCase):

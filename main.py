@@ -1,29 +1,36 @@
-
-#- Data source- csv
-#- Transformation- include cleaning(removing null values) and filtering (based on criteria)
-#- Data Destination- database, csv, or any other storage
-
 import logging
+import argparse
+
 from logger import setup_logger
-from extract import extract_data
-from transform import transform_data
-from load import load_data
-from config import DB_PATH
+from etl.extract import extract_data
+from etl.transform import transform_data, validate_schema
+from etl.load import load_data
+from config.config import (
+    DB_PATH, DATA_PATH, REQUIRED_COLUMNS, FILTER_COLUMN, FILTER_VALUE,
+    TABLE_NAME, TABLE_SCHEMA
+)
 
-
-# Pipeline Orchestration
-def run_etl():
+def run_etl(input_path=None, output_path=None):
     setup_logger()
     try:
-        df = extract_data()
-        df = transform_data(df)
+        df = extract_data(input_path or DATA_PATH)
+        validate_schema(df, REQUIRED_COLUMNS)
+        df = transform_data(df, required_cols=REQUIRED_COLUMNS, filter_col=FILTER_COLUMN, filter_value=FILTER_VALUE)
+
         if df.empty:
             logging.warning("No data to load after transformation")
             return
-        load_data(df, DB_PATH)
+
+        load_data(df, output_path or DB_PATH, TABLE_NAME, TABLE_SCHEMA)
         logging.info("ETL pipeline ran successfully.")
+
     except Exception as e:
         logging.error(f"ETL pipeline failed: {e}")
 
 if __name__ == "__main__":
-        run_etl()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", help="Path to input CSV")
+    parser.add_argument("--output", help="Path to SQLite DB")
+    args = parser.parse_args()
+
+    run_etl(args.input, args.output)
