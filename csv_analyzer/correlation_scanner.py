@@ -101,7 +101,7 @@ def compare_source_editor_columns(
     df, source_cols, editor_cols, threshold=0.2, verbose=False
 ):
     results = []
-    output_path = "ETL_Pipeline/etl/csv_analyzer/output_data/crosstabs_output.csv"
+    output_path = "csv_analyzer/output_data/crosstabs_output.csv"
 
     with open(output_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)

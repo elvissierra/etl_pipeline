@@ -10,7 +10,7 @@ from vendor_list import vendors_list
 from pop import run_popularity_logistic
 
 # === CONFIG ===
-input_folder = "ETL_Pipeline/etl/csv_analyzer/input_csv"
+input_folder = "csv_analyzer/input_csv"
 threshold = 0.2
 trace_cols = ["Name", "Place ID"]
 verbose = True
@@ -137,7 +137,7 @@ vendor_counts, vendor_duplicates, vendor_dup_rows = analyze_vendor_column(
     df, "Vendors", vendors_list
 )
 export_vendor_stats_to_csv(
-    vendor_counts, vendor_duplicates, vendor_dup_rows, "ETL_Pipeline/etl/csv_analyzer/output_data/vendor_stats.csv"
+    vendor_counts, vendor_duplicates, vendor_dup_rows, "csv_analyzer/output_data/vendor_stats.csv"
 )
 
 
