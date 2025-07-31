@@ -4,5 +4,5 @@
 .env
 __pychache__/
 .py[cod]
-
+csv_files
 data/*.db
