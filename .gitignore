@@ -2,7 +2,7 @@
 *.log
 *.db
 .env
-__pychache__/
+__pycache__/
 .py[cod]
 csv_files
 data/*.db
