@@ -20,7 +20,7 @@ def clean_list_string(s, sep=", "):
 
     return re.sub(r"[\[\]'\"]+", "", s)
 
-def find_latest_report(directory="csv_files/"):
+def find_latest_report(directory="auto_report_pipeline/csv_files/"):
     """ find latest csv outside of config and output report """
     excluded = {"report_config.csv", "Analytics_Report.csv"}
     files = glob.glob(os.path.join(directory, "*.csv"))
@@ -50,7 +50,7 @@ def write_custom_report(output_path, sections):
             writer.writerow([])
 
 
-def generate_dynamic_report(report_df, config_df, output_path="csv_files/Analytics_Report.csv"):
+def generate_dynamic_report(report_df, config_df, output_path="auto_report_pipeline/csv_files/Analytics_Report.csv"):
     """ Sectioned by column A in report_config """
 # normalize data
     report_df = normalize_columns(report_df)
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     #if dir_name == 'csv_files':
     #    report_dir = ''
     #elif dir_name == 'atx-movate-places':
-    report_dir = 'csv_files/'
+    report_dir = 'auto_report_pipeline/csv_files/'
     #else:
     #    raise FileNotFoundError(f"Unrecognized directory '{dir_name}'. No valid report_config found.")
     latest = find_latest_report(report_dir)
