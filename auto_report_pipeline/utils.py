@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 
 
 def safe_lower(val):
@@ -17,3 +18,11 @@ def get_root_value(value: str, delimiter: str) -> str:
 
 def clean_string(value: str) -> str:
     return str(value).strip() if isinstance(value, str) else value
+
+def clean_list_string(val):
+    if pd.isna(val):
+        return ""
+    val = str(val)
+    val = re.sub(r"[^a-zA-Z0-9, ]+", " ", val)
+    val = re.sub(r"\s+", " ", val)
+    return val.strip()

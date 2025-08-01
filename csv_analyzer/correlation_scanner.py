@@ -3,7 +3,7 @@ import numpy as np
 from scipy.stats import chi2_contingency
 from scipy.stats import spearmanr
 from itertools import product
-from vendor_list import vendors_list
+from .vendor_list import vendors_list
 from collections import Counter, defaultdict
 from pandas.api.types import is_numeric_dtype
 import re

@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-from AR_ETL import clean_list_string
+from .utils import clean_list_string
 
 """
 COLUMN
@@ -63,14 +63,6 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     else:
         cfg["delimiter"] = ""
 
-    for clean_col in cfg.loc[cfg["clean"], "column"]:
-        report_df[clean_col] = (
-            report_df[clean_col]
-            .fillna("")
-            .astype(str)
-            .apply(clean_list_string)
-        )
-
     sections = []
     sections.append([["Total rows", "", total_config]])
 
@@ -78,13 +70,23 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
         if col_name not in report_df.columns:
             continue
 
+        is_clean = cfg.loc[cfg["column"] == col_name, "clean"].any()
+        if is_clean:
+            clean_section = [[col_name.replace("_", " ").upper(), "", "Cleaned"]]
+            cleaned = report_df[col_name].apply(clean_list_string)
+            for val in cleaned:
+                clean_section.append(["", "", val])
+            sections.append(clean_section)
+            continue
+
+
         if cfg.loc[cfg["column"] == col_name, "duplicate"].any():
             raw = report_df[col_name].fillna("").astype(str)
             counts = raw.value_counts()
             duplicate =  counts[counts > 1]
-            section = [[col_name.upper(), "", "Duplicate"]]
+            section = [[col_name.replace("_", " ").upper(), "Duplicates", "Instances"]]
             for value, cnt in duplicate.items():
-                section.append([value, "", cnt])
+                section.append(["", value, cnt])
             sections.append(section)
             continue
 
@@ -92,14 +94,14 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
             raw = report_df[col_name].fillna("").astype(str)
             if not raw.str.match(r"^\d+(\.\d+)?%?$").all():
                 sections.append(
-                    [[col_name.upper(), "", "Average"], ["Non-digit field", "", ""]]
+                    [[col_name.replace("_", " ").upper(), "", "Average"], ["Non-digit field", "", ""]]
                 )
             else:
                 nums = pd.to_numeric(raw.str.rstrip("%"), errors="coerce")
                 avg = nums.mean()
                 unit = "%" if raw.str.endswith("%").any() else ""
                 sections.append(
-                    [[col_name.upper(), "", "Average"], ["", "", f"{avg:.2f}{unit}"]]
+                    [[col_name.replace("_", " ").upper(), "", "Average"], ["", "", f"{avg:.2f}{unit}"]]
                 )
             continue
 
@@ -146,7 +148,9 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                     if r["root_only"]:
                         series = series.str.split(re.escape(r["delimiter"]), expand=True)[0]
                     for val in sorted(series.str.strip().str.lower().unique()):
-                        label = val or "None"
+                        if not val.strip():
+                            continue  # Skip empty/blank values after cleaning
+                        label = val
                         cnt = int((series.str.strip().str.lower() == val).sum())
                         label_counts[label] = cnt
                 else:
@@ -159,7 +163,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                     label = r["value"] or "None"
                     label_counts[label] = label_counts.get(label, 0) + cnt
 
-        section = [[col_name.upper(), "%", "Count"]]
+        section = [[col_name.replace("_", " ").upper(), "%", "Count"]]
         for label, cnt in label_counts.items():
             pct = round(cnt / total_rows * 100, 2)
             section.append([label, f"{pct:.2f}%", cnt])
