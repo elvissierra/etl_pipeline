@@ -71,17 +71,17 @@ def generate_dynamic_report(report_df, config_df, output_path="auto_report_pipel
         cfg["aggregate"] = (
             cfg["aggregate"].fillna(False).astype(str).str.strip().str.lower().isin(["yes", "true"]))
     else:
-        cfg["aggregate"] = False
+        cfg["aggregate"] = "False"
 
     if "root_only" in cfg.columns:
         cfg["root_only"] = (cfg["root_only"].fillna(False).astype(str).str.strip().str.lower().isin(["yes", "true"]))
     else:
-        cfg["root_only"] = False
+        cfg["root_only"] = "False"
 
     if "separate_nodes" in cfg.columns:
         cfg["separate_nodes"] = (cfg["separate_nodes"].fillna(False).astype(str).str.strip().str.lower().isin(["yes", "true"]))
     else:
-        cfg["separate_nodes"] = False
+        cfg["separate_nodes"] = "False"
 
     if "delimiter" in cfg.columns:
         cfg["delimiter"] = cfg["delimiter"].fillna("|").astype(str)
@@ -89,26 +89,26 @@ def generate_dynamic_report(report_df, config_df, output_path="auto_report_pipel
         cfg["delimiter"] = ""
 
     if "average" in cfg.columns:
-        cfg["average"] = (cfg["average"].fillna(False).astype(str).str.strip().str.lower().isin(["yes", "true"]))
+        cfg["average"] = (cfg["average"].fillna("False").astype(str).str.strip().str.lower().isin(["yes", "true"]))
     else:
-        cfg["average"] = False
+        cfg["average"] = "False"
 
     if "duplicate" in cfg.columns:
-       cfg["duplicate"] = (cfg["duplicate"].fillna(False).astype(str).str.strip().str.lower().isin(["yes", "true"]))
+       cfg["duplicate"] = (cfg["duplicate"].fillna("False").astype(str).str.strip().str.lower().isin(["yes", "true"]))
     else:
-        cfg["duplicate"] = False
+        cfg["duplicate"] = "False"
       # handle clean option: if selected, clean column values using clean_list_string
     if "clean" in cfg.columns:
         cfg["clean"] = (
             cfg["clean"]
-               .fillna(False)
+               .fillna("False")
                .astype(str)
                .str.strip()
                .str.lower()
                .isin(["yes", "true"])
         )
     else:
-        cfg["clean"] = False
+        cfg["clean"] = "False"
   
     # apply cleaning to report_df for columns marked 'clean'
     for clean_col in cfg.loc[cfg["clean"], "column"]:

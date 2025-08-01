@@ -44,14 +44,14 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
         if flag in cfg.columns:
             cfg[flag] = (
                 cfg[flag]
-                    .fillna(False)
+                    .fillna("False")
                     .astype(str)
                     .str.strip()
                     .str.lower()
                     .isin(["yes", "true"])
             )
         else:
-            cfg[flag] = False
+            cfg[flag] = "False"
 
     if "value" in cfg.columns:
         cfg["value"] = cfg["value"].fillna("").astype(str).str.lower()
