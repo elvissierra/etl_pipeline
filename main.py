@@ -10,6 +10,8 @@ from config.config import (
     TABLE_NAME, TABLE_SCHEMA
 )
 
+# Coupled with etl dir
+
 def run_etl(input_path=None, output_path=None):
     setup_logger()
     try:

@@ -1,6 +1,8 @@
-from extract import load_csv
-from transform import generate_column_report
-from report_generator import assemble_report, save_report
+from auto_report_pipeline.extract import load_csv
+from auto_report_pipeline.transform import generate_column_report
+from auto_report_pipeline.report_generator import assemble_report, save_report
+
+# Coupled with auto_report_pipeline dir
 
 def run_auto_report(input_path: str, config_path: str, output_path: str):
     df = load_csv(input_path)
