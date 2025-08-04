@@ -11,8 +11,3 @@ def transform_data(
     if filter_col and filter_value is not None:
         df = df[df[filter_col] != filter_value]
     return df
-
-def validate_schema(df: pd.DataFrame, required_cols):
-    missing = set(required_cols) - set(df.columns)
-    if missing:
-        raise ValueError(f"Missing required columns: {missing}")

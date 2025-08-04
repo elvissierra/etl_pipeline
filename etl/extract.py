@@ -1,8 +1,7 @@
 import pandas as pd
 
 
-def extract_data(file_path=None):
+def extract_data(file_path: str):
     if not file_path:
-        from config.config import DATA_PATH
-        file_path = DATA_PATH
+        raise ValueError("'file_path' must be provided.")
     return pd.read_csv(file_path)

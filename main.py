@@ -1,7 +1,7 @@
 import logging
 import argparse
 
-from logger import setup_logger
+from etl.logger import setup_logger
 from etl.extract import extract_data
 from etl.transform import transform_data, validate_schema
 from etl.load import load_data
