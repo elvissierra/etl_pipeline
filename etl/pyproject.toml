@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "etl-core"
+version = "0.1.0"
+description = "A modular, DRY ETL framework for data extraction, transformation, and loading."
+authors = [ { name = "Your Name", email = "you@example.com" } ]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+
+# Optional runtime dependencies
+dependencies = [
+    "pandas>=1.5",
+    "pyyaml",
+    "python-dotenv",
+]
+
+[project.urls]
+Home = "https://github.com/your-org/etl-core"
+Repository = "https://github.com/your-org/etl-core"
+BugTracker = "https://github.com/your-org/etl-core/issues"
+
+[project.optional-dependencies]
+# Install for development (linting, testing)
+dev = [
+    "pytest",
+    "flake8",
+    "mypy",
+]

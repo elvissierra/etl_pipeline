@@ -1,6 +1,10 @@
 import sqlite3
+from etl.logger import setup_logger
+logger = setup_logger(__name__)
+
 
 def load_data(df, db_path, table_name, table_schema):
+    logger.info("Opening db connection to %s", db_path)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -11,6 +15,7 @@ def load_data(df, db_path, table_name, table_schema):
         {', '.join(schema_parts)}
     )"""
     cursor.execute(create_table_sql)
+    logger.info("Inserting %d rows into %s", len(df), table_name)
 
     # Insert data
     columns = list(table_schema.keys())
@@ -27,3 +32,4 @@ def load_data(df, db_path, table_name, table_schema):
 
     conn.commit()
     conn.close()
+    logger.info("Load complete, connection closed.")
