@@ -6,15 +6,15 @@ This is a modular, reusable ETL (Extract, Transform, Load) pipeline skeleton usi
 
 ## 📁 Project Structure
 ```
-ETL_Pipeline/
-├── etl/                  # Core modules (extract, transform, load)
-├── config/               # Configuration and schema
-├── data/                 # Input/output data
-├── logs/                 # Logging outputs
-├── tests/                # Unit tests (optional)
-├── main.py               # Entry point
-├── .env                  # Environment variables
-└── requirements.txt      # Dependencies
+ETL_Pipeline/ # current directory
+├── auto_report_pipeline/
+    ├── __init__
+    ├── AR_ETL
+    ├── extract
+    ├── report_generator
+    ├── transform
+    ├── utils
+    └── 
 ```
 
 ---
