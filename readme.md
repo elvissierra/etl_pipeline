@@ -32,7 +32,7 @@ LOG_FILE=etl_errors.log
 ### Example `config.py`
 ```python
 REQUIRED_COLUMNS = ["place_id", "edited_fields", ...]
-FILTER_COLUMN = "all_customer_suggested_fields_edited"
+FILTER_COLUMN = "fields_edited"
 FILTER_VALUE = "Yes"
 TABLE_NAME = "report_data"
 TABLE_SCHEMA = {
@@ -46,7 +46,7 @@ TABLE_SCHEMA = {
 
 ## 🚀 Running the Pipeline
 ```bash
-python main.py --input path/to/input.csv --output path/to/output.db
+python auto_report.py --input path/to/input.csv --output path/to/output.db
 ```
 
 If arguments are not provided, defaults from `.env` will be used.
@@ -80,7 +80,3 @@ python-dotenv
 ```
 
 ---
-
-## 📌 License
-MIT or your chosen license.
-
