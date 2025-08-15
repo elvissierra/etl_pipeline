@@ -1,9 +1,11 @@
 # To be used with extract, report_generator, transform, utils
 from auto_report_pipeline.extract import load_csv
-from auto_report_pipeline.transform import generate_column_report
+from auto_report_pipeline.transform import generate_column_report, run_basic_insights
 from auto_report_pipeline.report_generator import assemble_report, save_report
 
+
 # Coupled with auto_report_pipeline dir
+ANALYTICS_ENABLED = True
 
 
 def run_auto_report(input_path: str, config_path: str, output_path: str):
@@ -13,6 +15,13 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
     report_blocks = generate_column_report(df, config_df)
     final_report = assemble_report(report_blocks)
     save_report(final_report, output_path)
+    if ANALYTICS_ENABLED:
+        try:
+            import os
+            out_dir = os.path.dirname(output_path) or "."
+            run_basic_insights(df, threshold=0.2, output_dir=out_dir)
+        except Exception as e:
+            print(f"[insights] Skipped due to error: {e}")
 
 
 if __name__ == "__main__":

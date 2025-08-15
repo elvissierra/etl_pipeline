@@ -1,6 +1,8 @@
 import pandas as pd
 import re
 from auto_report_pipeline.utils import clean_list_string
+import numpy as np
+import csv
 
 """
 COLUMN
@@ -30,6 +32,7 @@ To output the average within a column this is float int any other digit base.
 CLEAN
 To clean any marking from a string, this is to only output character
 """
+
 
 
 def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> list:
@@ -189,3 +192,203 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
         sections.append(section)
 
     return sections
+
+# =========================
+# Lightweight Insights (correlations + crosstabs)
+# =========================
+
+def is_categorical_column(series: pd.Series, max_unique_values: int = 20) -> bool:
+    """Treat as categorical if dtype is object or low cardinality numeric."""
+    try:
+        unique_count = series.nunique(dropna=True)
+    except Exception:
+        unique_count = max_unique_values + 1
+    return series.dtype == "object" or unique_count <= max_unique_values
+
+
+def cramers_v_stat(col_a: pd.Series, col_b: pd.Series) -> float:
+    """Cramér's V for two categorical columns (no SciPy dependency)."""
+    contingency_table = pd.crosstab(col_a, col_b)
+    if contingency_table.shape[0] < 2 or contingency_table.shape[1] < 2:
+        return np.nan
+
+    observed = contingency_table.values.astype(float)
+    total = observed.sum()
+    if total == 0:
+        return np.nan
+
+    row_totals = observed.sum(axis=1, keepdims=True)
+    col_totals = observed.sum(axis=0, keepdims=True)
+    expected = row_totals @ col_totals / total
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        chi_square = np.nansum((observed - expected) ** 2 / expected)
+
+    rows, cols = observed.shape
+    phi2 = chi_square / total
+
+    # Bias correction
+    phi2_corrected = max(0.0, phi2 - ((cols - 1) * (rows - 1)) / (total - 1))
+    rows_corrected = rows - ((rows - 1) ** 2) / (total - 1)
+    cols_corrected = cols - ((cols - 1) ** 2) / (total - 1)
+    denom = min((cols_corrected - 1), (rows_corrected - 1))
+
+    return (np.sqrt(phi2_corrected / denom) if denom > 0 else np.nan)
+
+
+def compute_correlations_and_crosstabs(
+    dataframe: pd.DataFrame,
+    source_columns: list,
+    target_columns: list,
+    correlation_threshold: float = 0.2,
+    crosstab_output_path: str = "auto_report_pipeline/csv_files/crosstabs_output.csv",
+    correlations_output_path: str = "auto_report_pipeline/csv_files/correlation_results.csv",
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """Compare selected columns and persist crosstabs and strongest correlations.
+
+    - Numeric↔Numeric: Pearson
+    - Categorical↔Categorical: Cramér's V (+ write crosstabs)
+    - Mixed: one-hot categorical, Pearson vs numeric, keep max |r|
+    """
+    from pandas.api.types import is_numeric_dtype
+
+    correlation_rows = []
+
+    available_sources = [c for c in source_columns if c in dataframe.columns]
+    available_targets = [c for c in target_columns if c in dataframe.columns]
+
+    if verbose:
+        missing_sources = sorted(set(source_columns) - set(available_sources))
+        missing_targets = sorted(set(target_columns) - set(available_targets))
+        if missing_sources:
+            print(f"[insights] Skipping missing source columns: {missing_sources}")
+        if missing_targets:
+            print(f"[insights] Skipping missing target columns: {missing_targets}")
+
+    with open(crosstab_output_path, mode="w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+
+        for src_col in available_sources:
+            for tgt_col in available_targets:
+                src_series = dataframe[src_col]
+                tgt_series = dataframe[tgt_col]
+
+                mask = src_series.notna() & tgt_series.notna()
+                if mask.sum() == 0:
+                    continue
+
+                src_vals = src_series[mask]
+                tgt_vals = tgt_series[mask]
+
+                try:
+                    # Numeric ↔ Numeric
+                    if is_numeric_dtype(src_vals) and is_numeric_dtype(tgt_vals):
+                        pearson = src_vals.corr(tgt_vals)
+                        if pearson is not None and np.isfinite(pearson) and abs(pearson) >= correlation_threshold:
+                            correlation_rows.append({
+                                "Source Column": src_col,
+                                "Target Column": tgt_col,
+                                "Correlation": round(float(pearson), 4),
+                                "Method": "Pearson",
+                                "Type": "Positive" if pearson > 0 else "Negative",
+                            })
+
+                    # Categorical ↔ Categorical
+                    elif is_categorical_column(src_vals) and is_categorical_column(tgt_vals):
+                        ctab = pd.crosstab(src_vals, tgt_vals)
+                        writer.writerow([f"=== Crosstab: {src_col} vs {tgt_col} ==="])
+                        writer.writerow([ctab.index.name or src_col] + list(ctab.columns))
+                        for idx, row in ctab.iterrows():
+                            writer.writerow([idx] + list(row.values))
+                        writer.writerow([])
+
+                        v = cramers_v_stat(src_vals, tgt_vals)
+                        if v is not None and np.isfinite(v) and v >= correlation_threshold:
+                            correlation_rows.append({
+                                "Source Column": src_col,
+                                "Target Column": tgt_col,
+                                "Correlation": round(float(v), 4),
+                                "Method": "Cramér's V",
+                                "Type": "N/A",
+                            })
+
+                    # Mixed (Categorical ↔ Numeric)
+                    elif (is_categorical_column(src_vals) and is_numeric_dtype(tgt_vals)) or \
+                         (is_numeric_dtype(src_vals) and is_categorical_column(tgt_vals)):
+                        cat_vals, num_vals = (src_vals, tgt_vals) if is_categorical_column(src_vals) else (tgt_vals, src_vals)
+                        dummies = pd.get_dummies(cat_vals)
+                        max_abs_corr = dummies.corrwith(num_vals).abs().max() if not dummies.empty else 0.0
+                        if verbose:
+                            print(f"[insights] {src_col} vs {tgt_col}: mixed max |r|={max_abs_corr:.4f}")
+                        if max_abs_corr is not None and np.isfinite(max_abs_corr) and max_abs_corr >= correlation_threshold:
+                            correlation_rows.append({
+                                "Source Column": src_col,
+                                "Target Column": tgt_col,
+                                "Correlation": round(float(max_abs_corr), 4),
+                                "Method": "Dummies→Pearson",
+                                "Type": "Mixed",
+                            })
+                except Exception as e:
+                    if verbose:
+                        print(f"[insights] Skipped {src_col} vs {tgt_col}: {e}")
+                    continue
+
+    results_df = pd.DataFrame(correlation_rows)
+    results_df = results_df.sort_values(by="Correlation", ascending=False) if not results_df.empty else results_df
+    results_df.to_csv(correlations_output_path, index=False)
+
+    print(f"✅ Correlation results → {correlations_output_path}")
+    print(f"✅ Crosstabs written → {crosstab_output_path}")
+
+    return results_df
+
+
+def run_basic_insights(
+    dataframe: pd.DataFrame,
+    threshold: float = 0.2,
+    output_dir: str = "auto_report_pipeline/csv_files",
+):
+    """Run minimal correlations if expected columns are present; write outputs next to report."""
+    # Candidate columns; only those present will be used
+    source_candidates = [
+        "Country",
+        "Modern Category",
+        "Popularity",
+        "Supports Apple Pay",
+    ]
+    target_candidates = [
+        "Are hours visiting hours for tourists?",
+        "Is POI also a tourist attraction?",
+        "Are Hours Seasonal?",
+        "Religious Category Flag",
+    ]
+
+    # Try to engineer a popularity bin if Popularity exists and is numeric
+    if "Popularity" in dataframe.columns:
+        try:
+            dataframe["Popularity"] = pd.to_numeric(dataframe["Popularity"], errors="coerce")
+            if dataframe["Popularity"].notna().sum() > 0:
+                dataframe["pop_bin"] = pd.qcut(dataframe["Popularity"], q=3, labels=["Low", "Med", "High"])
+                source_candidates.append("pop_bin")
+        except Exception:
+            pass
+
+    available_sources = [c for c in source_candidates if c in dataframe.columns]
+    available_targets = [c for c in target_candidates if c in dataframe.columns]
+
+    if not available_sources or not available_targets:
+        print("[insights] Skipping: required columns not found in DataFrame.")
+        return None
+
+    crosstab_path = f"{output_dir}/crosstabs_output.csv"
+    correlation_path = f"{output_dir}/correlation_results.csv"
+
+    return compute_correlations_and_crosstabs(
+        dataframe,
+        available_sources,
+        available_targets,
+        correlation_threshold=threshold,
+        crosstab_output_path=crosstab_path,
+        correlations_output_path=correlation_path,
+    )
