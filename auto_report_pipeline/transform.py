@@ -39,16 +39,23 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     cfg.columns = cfg.columns.str.strip().str.lower().str.replace(" ", "_")
     cfg["column"] = cfg["column"].astype(str).str.strip()
 
-    flags = ["aggregate", "root_only", "separate_nodes", "average", "duplicate", "clean"]
+    flags = [
+        "aggregate",
+        "root_only",
+        "separate_nodes",
+        "average",
+        "duplicate",
+        "clean",
+    ]
     for flag in flags:
         if flag in cfg.columns:
             cfg[flag] = (
                 cfg[flag]
-                    .fillna("False")
-                    .astype(str)
-                    .str.strip()
-                    .str.lower()
-                    .isin(["yes", "true"])
+                .fillna("False")
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .isin(["yes", "true"])
             )
         else:
             cfg[flag] = "False"
@@ -79,11 +86,10 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
             sections.append(clean_section)
             continue
 
-
         if cfg.loc[cfg["column"] == col_name, "duplicate"].any():
             raw = report_df[col_name].fillna("").astype(str)
             counts = raw.value_counts()
-            duplicate =  counts[counts > 1]
+            duplicate = counts[counts > 1]
             section = [[col_name.replace("_", " ").upper(), "Duplicates", "Instances"]]
             for value, cnt in duplicate.items():
                 section.append(["", value, cnt])
@@ -94,14 +100,20 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
             raw = report_df[col_name].fillna("").astype(str)
             if not raw.str.match(r"^\d+(\.\d+)?%?$").all():
                 sections.append(
-                    [[col_name.replace("_", " ").upper(), "", "Average"], ["Non-digit field", "", ""]]
+                    [
+                        [col_name.replace("_", " ").upper(), "", "Average"],
+                        ["Non-digit field", "", ""],
+                    ]
                 )
             else:
                 nums = pd.to_numeric(raw.str.rstrip("%"), errors="coerce")
                 avg = nums.mean()
                 unit = "%" if raw.str.endswith("%").any() else ""
                 sections.append(
-                    [[col_name.replace("_", " ").upper(), "", "Average"], ["", "", f"{avg:.2f}{unit}"]]
+                    [
+                        [col_name.replace("_", " ").upper(), "", "Average"],
+                        ["", "", f"{avg:.2f}{unit}"],
+                    ]
                 )
             continue
 
@@ -140,13 +152,20 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                     items = (
                         series.str.split(
                             rf"\s*{re.escape(r["delimiter"])}\s*", regex=True
-                        ).explode().dropna().str.strip().str.lower())
+                        )
+                        .explode()
+                        .dropna()
+                        .str.strip()
+                        .str.lower()
+                    )
                     for val in items:
                         label = val or "None"
                         label_counts[label] = label_counts.get(label, 0) + 1
                 elif r["aggregate"]:
                     if r["root_only"]:
-                        series = series.str.split(re.escape(r["delimiter"]), expand=True)[0]
+                        series = series.str.split(
+                            re.escape(r["delimiter"]), expand=True
+                        )[0]
                     for val in sorted(series.str.strip().str.lower().unique()):
                         if not val.strip():
                             continue  # Skip empty/blank values after cleaning

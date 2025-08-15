@@ -13,9 +13,14 @@ LOG_FILE = os.getenv("LOG_FILE", "etl_errors.log")
 
 # ETL-specific configurations
 REQUIRED_COLUMNS = [
-    "place_id", "edited_fields", "last_editor_resolution", "suggested_fields",
-    "ticket_type", "other_markings_made_along_with_procedural_marking",
-    "all_customer_suggested_fields_edited", "popularity"
+    "place_id",
+    "edited_fields",
+    "last_editor_resolution",
+    "suggested_fields",
+    "ticket_type",
+    "other_markings_made_along_with_procedural_marking",
+    "all_customer_suggested_fields_edited",
+    "popularity",
 ]
 
 FILTER_COLUMN = "all_customer_suggested_fields_edited"
@@ -30,5 +35,5 @@ TABLE_SCHEMA = {
     "ticket_type": "TEXT",
     "other_markings_made_along_with_procedural_marking": "TEXT",
     "all_customer_suggested_fields_edited": "TEXT",
-    "popularity": "INTEGER"
+    "popularity": "INTEGER",
 }

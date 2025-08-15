@@ -1,5 +1,6 @@
 import pandas as pd
 
+
 def assemble_report(sections: list) -> pd.DataFrame:
     """
     Combines all report blocks into a long-form DataFrame.
@@ -8,6 +9,7 @@ def assemble_report(sections: list) -> pd.DataFrame:
     for block in sections:
         final_rows.extend(block + [["", "", ""]])
     return pd.DataFrame(final_rows)
+
 
 def save_report(df: pd.DataFrame, output_path: str):
     df.to_csv(output_path, index=False, header=False)

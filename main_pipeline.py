@@ -17,6 +17,7 @@ from csv_analyzer.correlation_scanner import (
 from csv_analyzer.pop import run_popularity_logistic
 from csv_analyzer.vendor_list import vendors_list
 
+
 def pipeline_main(
     raw_csv_path,
     report_config_path,
@@ -54,6 +55,7 @@ def pipeline_main(
     print(model.summary())
     print("\nOdds Ratios:\n", odds)
     print("\nPredicted probabilities:\n", prob_df)
+
 
 if __name__ == "__main__":
     pipeline_main(

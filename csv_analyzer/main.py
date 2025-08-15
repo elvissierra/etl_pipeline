@@ -137,7 +137,10 @@ vendor_counts, vendor_duplicates, vendor_dup_rows = analyze_vendor_column(
     df, "Vendors", vendors_list
 )
 export_vendor_stats_to_csv(
-    vendor_counts, vendor_duplicates, vendor_dup_rows, "csv_analyzer/output_data/vendor_stats.csv"
+    vendor_counts,
+    vendor_duplicates,
+    vendor_dup_rows,
+    "csv_analyzer/output_data/vendor_stats.csv",
 )
 
 
