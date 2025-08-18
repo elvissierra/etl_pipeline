@@ -46,8 +46,8 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
         "aggregate",
         "root_only",
         "separate_nodes",
-        "average",
         "duplicate",
+        "average",
         "clean",
     ]
     for flag in flags:
@@ -227,7 +227,6 @@ def cramers_v_stat(col_a: pd.Series, col_b: pd.Series) -> float:
     rows, cols = observed.shape
     phi2 = chi_square / total
 
-    # Bias correction
     phi2_corrected = max(0.0, phi2 - ((cols - 1) * (rows - 1)) / (total - 1))
     rows_corrected = rows - ((rows - 1) ** 2) / (total - 1)
     cols_corrected = cols - ((cols - 1) ** 2) / (total - 1)
@@ -250,8 +249,6 @@ def compute_correlations_and_crosstabs(
     """Compare selected columns and persist crosstabs and strongest correlations.
 
     - Numeric↔Numeric: Pearson
-    - Categorical↔Categorical: Cramér's V (+ write crosstabs)
-    - Mixed: one-hot categorical, Pearson vs numeric, keep max |r|
     """
     from pandas.api.types import is_numeric_dtype
 
@@ -360,26 +357,23 @@ def compute_correlations_and_crosstabs(
 from typing import Optional, Tuple, List, Dict
 
 def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
-    """Extract insights directives from report_config.
+    """
+    Extract insights directives from report_config.
 
     Expected rows (case-insensitive, normalized by extract.load_csv):
-      COLUMN=__insights_enabled__   VALUE=true|false
-      COLUMN=__insights_threshold__ VALUE=<float>
-      COLUMN=__insights_sources__   VALUE=Pipe|Delimited|List
-      COLUMN=__insights_targets__   VALUE=Pipe|Delimited|List
+
     Returns a dict with defaults when rows are missing.
     """
     out = {
         "enabled": True,
         "threshold": 0.2,
-        "sources": None,   # None means use defaults
+        "sources": None,
         "targets": None,
     }
     if config_df is None or config_df.empty or "column" not in config_df.columns:
         return out
 
     # Build lookup from column->value (strings)
-    # config_df is already normalized to lowercase snake_case by load_csv
     rows = config_df[["column", "value"]].copy()
     rows["column"] = rows["column"].astype(str).str.strip()
     rows["value"] = rows["value"].astype(str).str.strip()
@@ -387,8 +381,8 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
 
     def _as_bool(s: str) -> Optional[bool]:
         s = (s or "").strip().lower()
-        if s in {"true", "yes", "1"}: return True
-        if s in {"false", "no", "0"}: return False
+        if s in {"true", "yes"}: return True
+        if s in {"false", "no"}: return False
         return None
 
     def _as_float(s: str) -> Optional[float]:
@@ -429,7 +423,9 @@ def run_basic_insights(
     threshold: Optional[float] = None,
     output_dir: str = "auto_report_pipeline/csv_files",
 ):
-    """Run minimal correlations if expected columns are present; write outputs next to report."""
+    """
+    Run minimal correlations if expected columns are present; write outputs next to report.
+    """
     # 1) Read directives (or fall back to defaults)
     directives = _parse_insights_from_config(config_df)
     if directives.get("enabled") is False:
@@ -460,32 +456,10 @@ def run_basic_insights(
     else:
         df_work = dataframe
 
-    # 2) Determine candidate columns
-    default_sources = [
-        "Country",
-        "Modern Category",
-        "Popularity",
-        "Supports Apple Pay",
-    ]
-    default_targets = [
-        "Are hours visiting hours for tourists?",
-        "Is POI also a tourist attraction?",
-        "Are Hours Seasonal?",
-        "Religious Category Flag",
-    ]
-    source_candidates = directives.get("sources") or default_sources
-    target_candidates = directives.get("targets") or default_targets
 
-    # 3) Try to engineer a popularity bin if Popularity exists and is numeric
-    if "Popularity" in df_work.columns and "pop_bin" not in df_work.columns:
-        try:
-            df_work["Popularity"] = pd.to_numeric(df_work["Popularity"], errors="coerce")
-            if df_work["Popularity"].notna().sum() > 0:
-                df_work["pop_bin"] = pd.qcut(df_work["Popularity"], q=3, labels=["Low", "Med", "High"])
-                if directives.get("sources") is None and "pop_bin" not in source_candidates:
-                    source_candidates.append("pop_bin")
-        except Exception:
-            pass
+    source_candidates = directives.get("sources")
+    target_candidates = directives.get("targets")
+
 
     def _resolve_existing_columns(df: pd.DataFrame, candidates: list[str]) -> tuple[list[str], list[str]]:
         """Resolve candidate names to actual df columns using the SAME normalization

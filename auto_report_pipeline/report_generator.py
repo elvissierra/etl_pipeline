@@ -3,7 +3,7 @@ import pandas as pd
 
 def assemble_report(sections: list) -> pd.DataFrame:
     """
-    Combines all report blocks into a long-form DataFrame.
+    Combines all report blocks into a long-form DataFrame
     """
     final_rows = []
     for block in sections:
