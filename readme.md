@@ -1,3 +1,4 @@
+
 # ETL Pipeline Skeleton
 
 This is a modular, reusable ETL (Extract, Transform, Load) pipeline skeleton using Python and SQLite, designed for quick adaptation in future data processing projects.
@@ -46,7 +47,8 @@ TABLE_SCHEMA = {
 
 ## 🚀 Running the Pipeline
 ```bash
-python auto_report.py --input path/to/input.csv --output path/to/output.db
+python auto_report.py --config-path csv_files/report_config.csv   
+
 ```
 
 If arguments are not provided, defaults from `.env` will be used.

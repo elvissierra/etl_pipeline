@@ -19,7 +19,7 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
         try:
             import os
             out_dir = os.path.dirname(output_path) or "."
-            run_basic_insights(df, threshold=0.2, output_dir=out_dir)
+            run_basic_insights(df, config_df=config_df, output_dir=out_dir)
         except Exception as e:
             print(f"[insights] Skipped due to error: {e}")
 
