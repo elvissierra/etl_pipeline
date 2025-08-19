@@ -3,6 +3,9 @@ from auto_report_pipeline.extract import load_csv
 from auto_report_pipeline.transform import generate_column_report, run_basic_insights
 from auto_report_pipeline.report_generator import assemble_report, save_report
 
+import argparse
+import os
+
 
 # Coupled with auto_report_pipeline dir
 ANALYTICS_ENABLED = True
@@ -25,8 +28,17 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run auto report pipeline")
+    parser.add_argument("--input-path", default="auto_report_pipeline/csv_files/Test_Report.csv", help="Path to input data CSV")
+    parser.add_argument("--config-path", default="auto_report_pipeline/csv_files/report_config.csv", help="Path to report_config CSV")
+    parser.add_argument("--output-path", default="auto_report_pipeline/csv_files/Analytics_Report.csv", help="Path to write Analytics_Report.csv")
+    args = parser.parse_args()
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(args.output_path) or ".", exist_ok=True)
+
     run_auto_report(
-        input_path="auto_report_pipeline/csv_files/Test_Report.csv",
-        config_path="auto_report_pipeline/csv_files/report_config.csv",
-        output_path="auto_report_pipeline/csv_files/Analytics_Report.csv",
+        input_path=args.input_path,
+        config_path=args.config_path,
+        output_path=args.output_path,
     )

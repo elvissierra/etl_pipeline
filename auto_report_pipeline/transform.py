@@ -42,6 +42,21 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     cfg.columns = cfg.columns.str.strip().str.lower().str.replace(" ", "_")
     cfg["column"] = cfg["column"].astype(str).str.strip()
 
+    cfg["column"] = (
+        cfg["column"].astype(str)
+        .str.replace(r"^[\"']+|[\"']+$", "", regex=True)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+    )
+    
+    def _norm_header(s: str) -> str:
+        s = str(s).strip()
+        s = re.sub(r"^[\"']+|[\"']+$", "", s)
+        s = re.sub(r"\s+", " ", s)
+        return s.lower().replace(" ", "_")
+
+    header_lookup = { _norm_header(c): c for c in report_df.columns }
+
     flags = [
         "aggregate",
         "root_only",
@@ -77,20 +92,21 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     sections.append([["Total rows", "", total_config]])
 
     for col_name in cfg["column"].unique():
-        if col_name not in report_df.columns:
+        resolved_col = header_lookup.get(_norm_header(col_name))
+        if not resolved_col:
             continue
 
         is_clean = cfg.loc[cfg["column"] == col_name, "clean"].any()
         if is_clean:
             clean_section = [[col_name.replace("_", " ").upper(), "", "Cleaned"]]
-            cleaned = report_df[col_name].apply(clean_list_string)
+            cleaned = report_df[resolved_col].apply(clean_list_string)
             for val in cleaned:
                 clean_section.append(["", "", val])
             sections.append(clean_section)
             continue
 
         if cfg.loc[cfg["column"] == col_name, "duplicate"].any():
-            raw = report_df[col_name].fillna("").astype(str)
+            raw = report_df[resolved_col].fillna("").astype(str)
             counts = raw.value_counts()
             duplicate = counts[counts > 1]
             section = [[col_name.replace("_", " ").upper(), "Duplicates", "Instances"]]
@@ -100,7 +116,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
             continue
 
         if cfg.loc[cfg["column"] == col_name, "average"].any():
-            raw = report_df[col_name].fillna("").astype(str)
+            raw = report_df[resolved_col].fillna("").astype(str)
             if not raw.str.match(r"^\d+(\.\d+)?%?$").all():
                 sections.append(
                     [
@@ -126,7 +142,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
 
         if not search_value.empty:
             for _, r in search_value.iterrows():
-                series = report_df[col_name].fillna("").astype(str)
+                series = report_df[resolved_col].fillna("").astype(str)
                 if r["separate_nodes"]:
                     items = (
                         series.str.split(
@@ -150,7 +166,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                 label_counts[label] = cnt
         else:
             for _, r in entries.iterrows():
-                series = report_df[col_name].fillna("").astype(str)
+                series = report_df[resolved_col].fillna("").astype(str)
                 if r["separate_nodes"]:
                     items = (
                         series.str.split(
@@ -171,7 +187,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                         )[0]
                     for val in sorted(series.str.strip().str.lower().unique()):
                         if not val.strip():
-                            continue  # Skip empty/blank values after cleaning
+                            continue
                         label = val
                         cnt = int((series.str.strip().str.lower() == val).sum())
                         label_counts[label] = cnt
@@ -193,9 +209,9 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
 
     return sections
 
-# =========================
+
 # Lightweight Insights (correlations + crosstabs)
-# =========================
+
 
 def is_categorical_column(series: pd.Series, max_unique_values: int = 20) -> bool:
     """Treat as categorical if dtype is object or low cardinality numeric."""
@@ -352,8 +368,6 @@ def compute_correlations_and_crosstabs(
     return results_df
 
 
-
-# === Helper: Parse insights directives from config ===
 from typing import Optional, Tuple, List, Dict
 
 def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
@@ -424,18 +438,15 @@ def run_basic_insights(
     output_dir: str = "auto_report_pipeline/csv_files",
 ):
     """
-    Run minimal correlations if expected columns are present; write outputs next to report.
+    Run minimal correlations if expected columns are present; write outputs next to report
     """
-    # 1) Read directives (or fall back to defaults)
     directives = _parse_insights_from_config(config_df)
     if directives.get("enabled") is False:
         print("[insights] Disabled by report_config (__INSIGHTS_ENABLED__=false).")
         return None
 
-    # threshold precedence: explicit arg > config > default
     eff_threshold = threshold if threshold is not None else directives.get("threshold", 0.2)
 
-    # Ensure unique column labels to avoid alignment errors (e.g., duplicate 'Popularity')
     def _make_unique(cols):
         seen = {}
         out = []
@@ -478,7 +489,7 @@ def run_basic_insights(
         for col in df_work.columns:
             key = _norm(col)
             if key not in lookup:
-                lookup[key] = col  # first wins
+                lookup[key] = col
 
         resolved, missing = [], []
         for name in candidates:
