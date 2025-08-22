@@ -4,6 +4,25 @@ from auto_report_pipeline.utils import clean_list_string
 import numpy as np
 import csv
 
+
+# Helper for "root_only" delimiter splitting
+def _apply_root_only(series: pd.Series, delimiter: str) -> pd.Series:
+    """Return the root value (substring before the first delimiter).
+    Handles '.' safely and trims whitespace around the delimiter.
+    """
+    if delimiter is None or str(delimiter) == "":
+        return series
+    delim = str(delimiter)
+    # Build a regex that splits on first occurrence of the delimiter
+    if delim == ".":
+        pattern = r"\s*\.\s*"
+    else:
+        pattern = rf"\s*{re.escape(delim)}\s*"
+    try:
+        return series.astype(str).str.split(pattern, n=1, regex=True).str[0].str.strip()
+    except Exception:
+        return series
+
 """
 COLUMN
 Is the column in the report to be manipulated.
@@ -157,9 +176,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                     cnt = int((items == r["value"]).sum())
                 else:
                     if r["root_only"]:
-                        series = series.str.split(
-                            re.escape(r["delimiter"]), expand=True
-                        )[0]
+                        series = _apply_root_only(series, r["delimiter"])
                     pattern = rf"(?:^|\|)\s*{re.escape(r["value"])}\s*(?:\||$)"
                     cnt = int(series.str.lower().str.contains(pattern).sum())
                 label = r["value"] or "None"
@@ -182,9 +199,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                         label_counts[label] = label_counts.get(label, 0) + 1
                 elif r["aggregate"]:
                     if r["root_only"]:
-                        series = series.str.split(
-                            re.escape(r["delimiter"]), expand=True
-                        )[0]
+                        series = _apply_root_only(series, r["delimiter"])
                     for val in sorted(series.str.strip().str.lower().unique()):
                         if not val.strip():
                             continue
@@ -193,9 +208,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
                         label_counts[label] = cnt
                 else:
                     if r["root_only"]:
-                        series = series.str.split(
-                            re.escape(r["delimiter"]), expand=True
-                        )[0]
+                        series = _apply_root_only(series, r["delimiter"])
                     pattern = rf"(?:^|\|)\s*{re.escape(r["value"])}\s*(?:\||$)"
                     cnt = int(series.str.lower().str.contains(pattern).sum())
                     label = r["value"] or "None"
@@ -370,6 +383,8 @@ def compute_correlations_and_crosstabs(
 
 from typing import Optional, Tuple, List, Dict
 
+# Insights directives now accept flexible header names (underscores/spaces not required), e.g.:
+#  INSIGHTS ENABLED, INSIGHTS_ENABLED, __INSIGHTS_ENABLED__ (case-insensitive)
 def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
     """
     Extract insights directives from report_config.
@@ -378,6 +393,21 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
 
     Returns a dict with defaults when rows are missing.
     """
+    def _norm_key_name(s: str) -> str:
+        """Normalize directive key names.
+        Accepts variants like:
+        - __INSIGHTS_THRESHOLD__
+        - INSIGHTS_THRESHOLD
+        - INSIGHTS THRESHOLD
+        - insights-threshold (any non-alnum treated as space)
+        and resolves to a compact form like 'insightsthreshold'.
+        """
+        s = str(s or "").strip().lower()
+        # Replace any non-alphanumeric with a single space
+        s = re.sub(r"[^a-z0-9]+", " ", s)
+        # Collapse spaces and drop them
+        s = re.sub(r"\s+", " ", s).strip().replace(" ", "")
+        return s
     out = {
         "enabled": True,
         "threshold": 0.2,
@@ -387,11 +417,15 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
     if config_df is None or config_df.empty or "column" not in config_df.columns:
         return out
 
-    # Build lookup from column->value (strings)
+    # Build lookup from normalized directive key -> value
     rows = config_df[["column", "value"]].copy()
     rows["column"] = rows["column"].astype(str).str.strip()
     rows["value"] = rows["value"].astype(str).str.strip()
-    lut = {r["column"]: r["value"] for _, r in rows.iterrows() if r["column"].startswith("__insights_")}
+    lut = {}
+    for _, r in rows.iterrows():
+        key_norm = _norm_key_name(r["column"])
+        if key_norm in {"insightsenabled", "insightsthreshold", "insightssources", "insightstargets"}:
+            lut[key_norm] = r["value"]
 
     def _as_bool(s: str) -> Optional[bool]:
         s = (s or "").strip().lower()
@@ -411,18 +445,18 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
         return [part.strip() for part in s.split("|") if part.strip()]
 
     # enabled
-    val = _as_bool(lut.get("__insights_enabled__", ""))
+    val = _as_bool(lut.get("insightsenabled", ""))
     if val is not None:
         out["enabled"] = val
 
     # threshold
-    thr = _as_float(lut.get("__insights_threshold__", ""))
+    thr = _as_float(lut.get("insightsthreshold", ""))
     if thr is not None:
         out["threshold"] = thr
 
     # sources / targets
-    srcs = _as_list(lut.get("__insights_sources__", ""))
-    tgts = _as_list(lut.get("__insights_targets__", ""))
+    srcs = _as_list(lut.get("insightssources", ""))
+    tgts = _as_list(lut.get("insightstargets", ""))
     if srcs:
         out["sources"] = srcs
     if tgts:
