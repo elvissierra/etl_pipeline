@@ -224,11 +224,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     return sections
 
 
-# Lightweight Insights (correlations + crosstabs)
-
-
 def is_categorical_column(series: pd.Series, max_unique_values: int = 20) -> bool:
-    """Treat as categorical if dtype is object or low cardinality numeric."""
     try:
         unique_count = series.nunique(dropna=True)
     except Exception:
@@ -237,7 +233,7 @@ def is_categorical_column(series: pd.Series, max_unique_values: int = 20) -> boo
 
 
 def cramers_v_stat(col_a: pd.Series, col_b: pd.Series) -> float:
-    """Cramér's V for two categorical columns (no SciPy dependency)."""
+    """ Cramér's V for two categorical columns """
     contingency_table = pd.crosstab(col_a, col_b)
     if contingency_table.shape[0] < 2 or contingency_table.shape[1] < 2:
         return np.nan
@@ -273,13 +269,9 @@ def compute_correlations_and_crosstabs(
     crosstab_output_path: str = "auto_report_pipeline/csv_files/crosstabs_output.csv",
     correlations_output_path: str = "auto_report_pipeline/csv_files/correlation_results.csv",
     verbose: bool = True,
-    include_method: bool = False,
     include_type: bool = False,
 ) -> pd.DataFrame:
-    """Compare selected columns and persist crosstabs and strongest correlations.
-
-    - Numeric↔Numeric: Pearson
-    """
+    """ Compare selected columns and persist crosstabs and strongest correlations. """
     from pandas.api.types import is_numeric_dtype
 
     correlation_rows = []
@@ -311,7 +303,7 @@ def compute_correlations_and_crosstabs(
                 tgt_vals = tgt_series[mask]
 
                 try:
-                    # Numeric ↔ Numeric
+                    # Numeric - Numeric
                     if is_numeric_dtype(src_vals) and is_numeric_dtype(tgt_vals):
                         pearson = src_vals.corr(tgt_vals)
                         if (
@@ -323,14 +315,12 @@ def compute_correlations_and_crosstabs(
                                 "Source Column": src_col,
                                 "Target Column": tgt_col,
                                 "Correlation": round(float(pearson), 4),
-                            }
-                            if include_method:
-                                row["Method"] = "Pearson"
+                            }                            
                             if include_type:
                                 row["Type"] = "Positive" if pearson > 0 else "Negative"
                             correlation_rows.append(row)
 
-                    # Categorical ↔ Categorical
+                    # Categorical - Categorical
                     elif is_categorical_column(src_vals) and is_categorical_column(
                         tgt_vals
                     ):
@@ -354,13 +344,11 @@ def compute_correlations_and_crosstabs(
                                 "Target Column": tgt_col,
                                 "Correlation": round(float(v), 4),
                             }
-                            if include_method:
-                                row["Method"] = "Cramér's V"
                             if include_type:
-                                row["Type"] = "N/A"  # Cramér's V is unsigned
+                                row["Type"] = "N/A"
                             correlation_rows.append(row)
 
-                    # Mixed (Categorical ↔ Numeric)
+                    # Mixed (Categorical - Numeric)
                     elif (
                         is_categorical_column(src_vals) and is_numeric_dtype(tgt_vals)
                     ) or (
@@ -391,8 +379,6 @@ def compute_correlations_and_crosstabs(
                                 "Target Column": tgt_col,
                                 "Correlation": round(float(max_abs_corr), 4),
                             }
-                            if include_method:
-                                row["Method"] = "Dummies→Pearson"
                             if include_type:
                                 row["Type"] = "Mixed"
                             correlation_rows.append(row)
@@ -418,8 +404,6 @@ def compute_correlations_and_crosstabs(
 from typing import Optional, Tuple, List, Dict
 
 
-# Insights directives now accept flexible header names (underscores/spaces not required), e.g.:
-#  INSIGHTS ENABLED, INSIGHTS_ENABLED, __INSIGHTS_ENABLED__ (case-insensitive)
 def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
     """
     Extract insights directives from report_config.
@@ -430,18 +414,9 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
     """
 
     def _norm_key_name(s: str) -> str:
-        """Normalize directive key names.
-        Accepts variants like:
-        - __INSIGHTS_THRESHOLD__
-        - INSIGHTS_THRESHOLD
-        - INSIGHTS THRESHOLD
-        - insights-threshold (any non-alnum treated as space)
-        and resolves to a compact form like 'insightsthreshold'.
-        """
+        """ Normalize directive key names. """
         s = str(s or "").strip().lower()
-        # Replace any non-alphanumeric with a single space
         s = re.sub(r"[^a-z0-9]+", " ", s)
-        # Collapse spaces and drop them
         s = re.sub(r"\s+", " ", s).strip().replace(" ", "")
         return s
 
@@ -488,15 +463,6 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
             return []
         return [part.strip() for part in s.split("|") if part.strip()]
 
-    # enabled
-    val = _as_bool(lut.get("insightsenabled", ""))
-    if val is not None:
-        out["enabled"] = val
-
-    # threshold
-    thr = _as_float(lut.get("insightsthreshold", ""))
-    if thr is not None:
-        out["threshold"] = thr
 
     # sources / targets
     srcs = _as_list(lut.get("insightssources", ""))
@@ -555,18 +521,13 @@ def run_basic_insights(
     def _resolve_existing_columns(
         df: pd.DataFrame, candidates: list[str]
     ) -> tuple[list[str], list[str]]:
-        """Resolve candidate names to actual df columns using the SAME normalization
-        as extract.load_csv (strip→lower→collapse spaces→underscores), while also
-        stripping de-dup suffixes like '.1', '.2'. Returns (resolved_original_names, missing_candidates).
-        If multiple columns match a single candidate (due to duplicates), ALL are returned.
-        """
+        """ Resolve candidate names to actual df columns, also returns multiple dupe columns """
         if not candidates:
             return [], []
 
         def _norm(s: str) -> str:
             s = str(s).strip().lower()
             s = re.sub(r"\s+", "_", s)
-            # strip de-dup suffix like '.1', '.2' appended earlier
             s = re.sub(r"\.(?:\d+)$", "", s)
             return s
 
