@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 
@@ -23,7 +22,9 @@ def load_csv(path: str) -> pd.DataFrame:
 
     if "column" not in df.columns:
         raw = pd.read_csv(path, header=None, dtype=str, keep_default_na=False)
-        raw = raw.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
+        raw = raw.apply(
+            lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x)
+        )
         first_col = raw.iloc[:, 0].astype(str).str.strip().str.lower()
         header_row_idx = first_col[first_col == "column"].index.tolist()
         if header_row_idx:
@@ -37,7 +38,11 @@ def load_csv(path: str) -> pd.DataFrame:
 
     if "column" in df.columns:
         df["column"] = (
-            df["column"].astype(str).str.strip().str.lower().str.replace(" ", "_", regex=False)
+            df["column"]
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .str.replace(" ", "_", regex=False)
         )
 
     df = df.replace(r"^\s*$", np.nan, regex=True)

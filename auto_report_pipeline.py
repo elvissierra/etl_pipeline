@@ -9,11 +9,14 @@ import csv
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_CONFIG_PATH = str((SCRIPT_DIR / "auto_report_pipeline/csv_files/report_config.csv").resolve())
+DEFAULT_CONFIG_PATH = str(
+    (SCRIPT_DIR / "auto_report_pipeline/csv_files/report_config.csv").resolve()
+)
 
 
- # Coupled with auto_report_pipeline dir
+# Coupled with auto_report_pipeline dir
 ANALYTICS_ENABLED = True
+
 
 def read_io_from_config(config_path: str) -> tuple[str | None, str | None]:
     """Read INPUT and OUTPUT from the report_config CSV.
@@ -44,7 +47,11 @@ def read_io_from_config(config_path: str) -> tuple[str | None, str | None]:
         pth = Path(p)
         # If relative and config.csv is already inside csv_files/, avoid duplicating the segment
         if not pth.is_absolute():
-            if cfg_dir.name == "csv_files" and len(pth.parts) > 0 and pth.parts[0] == "csv_files":
+            if (
+                cfg_dir.name == "csv_files"
+                and len(pth.parts) > 0
+                and pth.parts[0] == "csv_files"
+            ):
                 # Drop the leading 'csv_files' from the provided path
                 pth = Path(*pth.parts[1:]) if len(pth.parts) > 1 else Path(".")
             pth = (cfg_dir / pth).resolve()
@@ -58,6 +65,7 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
     # De-duplicate duplicate column names to ensure Series selection works
     if df.columns.duplicated().any():
         print("[report] Duplicate column names detected; de-duplicating.")
+
         def _make_unique(cols):
             seen = {}
             out = []
@@ -70,6 +78,7 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
                     seen[name] = 0
                     out.append(name)
             return out
+
         df = df.copy()
         df.columns = _make_unique(df.columns)
     config_df = load_csv(config_path)
@@ -80,6 +89,7 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
     if ANALYTICS_ENABLED:
         try:
             import os
+
             out_dir = os.path.dirname(output_path) or "."
             run_basic_insights(df, config_df=config_df, output_dir=out_dir)
         except Exception as e:
@@ -88,10 +98,24 @@ def run_auto_report(input_path: str, config_path: str, output_path: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run auto report pipeline")
-    parser.add_argument("--config-path", default=DEFAULT_CONFIG_PATH, help="Path to report_config CSV")
-    parser.add_argument("--input-path", default=None, help="(Optional) Override input CSV path; if omitted, value from report_config is used")
-    parser.add_argument("--output-path", default=None, help="(Optional) Override output CSV path; if omitted, value from report_config is used")
-    parser.add_argument("--no-config-io", action="store_true", help="If set, do NOT read INPUT/OUTPUT from report_config; use CLI values only")
+    parser.add_argument(
+        "--config-path", default=DEFAULT_CONFIG_PATH, help="Path to report_config CSV"
+    )
+    parser.add_argument(
+        "--input-path",
+        default=None,
+        help="(Optional) Override input CSV path; if omitted, value from report_config is used",
+    )
+    parser.add_argument(
+        "--output-path",
+        default=None,
+        help="(Optional) Override output CSV path; if omitted, value from report_config is used",
+    )
+    parser.add_argument(
+        "--no-config-io",
+        action="store_true",
+        help="If set, do NOT read INPUT/OUTPUT from report_config; use CLI values only",
+    )
     args = parser.parse_args()
 
     # Resolve INPUT/OUTPUT from report_config unless explicitly disabled

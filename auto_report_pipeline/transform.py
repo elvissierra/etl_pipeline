@@ -23,6 +23,7 @@ def _apply_root_only(series: pd.Series, delimiter: str) -> pd.Series:
     except Exception:
         return series
 
+
 """
 COLUMN
 Is the column in the report to be manipulated.
@@ -53,7 +54,6 @@ To clean any marking from a string, this is to only output character
 """
 
 
-
 def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> list:
     total_config = len(config_df)
     total_rows = len(report_df)
@@ -62,19 +62,20 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
     cfg["column"] = cfg["column"].astype(str).str.strip()
 
     cfg["column"] = (
-        cfg["column"].astype(str)
+        cfg["column"]
+        .astype(str)
         .str.replace(r"^[\"']+|[\"']+$", "", regex=True)
         .str.replace(r"\s+", " ", regex=True)
         .str.strip()
     )
-    
+
     def _norm_header(s: str) -> str:
         s = str(s).strip()
         s = re.sub(r"^[\"']+|[\"']+$", "", s)
         s = re.sub(r"\s+", " ", s)
         return s.lower().replace(" ", "_")
 
-    header_lookup = { _norm_header(c): c for c in report_df.columns }
+    header_lookup = {_norm_header(c): c for c in report_df.columns}
 
     flags = [
         "aggregate",
@@ -261,7 +262,7 @@ def cramers_v_stat(col_a: pd.Series, col_b: pd.Series) -> float:
     cols_corrected = cols - ((cols - 1) ** 2) / (total - 1)
     denom = min((cols_corrected - 1), (rows_corrected - 1))
 
-    return (np.sqrt(phi2_corrected / denom) if denom > 0 else np.nan)
+    return np.sqrt(phi2_corrected / denom) if denom > 0 else np.nan
 
 
 def compute_correlations_and_crosstabs(
@@ -313,7 +314,11 @@ def compute_correlations_and_crosstabs(
                     # Numeric ↔ Numeric
                     if is_numeric_dtype(src_vals) and is_numeric_dtype(tgt_vals):
                         pearson = src_vals.corr(tgt_vals)
-                        if pearson is not None and np.isfinite(pearson) and abs(pearson) >= correlation_threshold:
+                        if (
+                            pearson is not None
+                            and np.isfinite(pearson)
+                            and abs(pearson) >= correlation_threshold
+                        ):
                             row = {
                                 "Source Column": src_col,
                                 "Target Column": tgt_col,
@@ -326,16 +331,24 @@ def compute_correlations_and_crosstabs(
                             correlation_rows.append(row)
 
                     # Categorical ↔ Categorical
-                    elif is_categorical_column(src_vals) and is_categorical_column(tgt_vals):
+                    elif is_categorical_column(src_vals) and is_categorical_column(
+                        tgt_vals
+                    ):
                         ctab = pd.crosstab(src_vals, tgt_vals)
                         writer.writerow([f"=== Crosstab: {src_col} vs {tgt_col} ==="])
-                        writer.writerow([ctab.index.name or src_col] + list(ctab.columns))
+                        writer.writerow(
+                            [ctab.index.name or src_col] + list(ctab.columns)
+                        )
                         for idx, row in ctab.iterrows():
                             writer.writerow([idx] + list(row.values))
                         writer.writerow([])
 
                         v = cramers_v_stat(src_vals, tgt_vals)
-                        if v is not None and np.isfinite(v) and v >= correlation_threshold:
+                        if (
+                            v is not None
+                            and np.isfinite(v)
+                            and v >= correlation_threshold
+                        ):
                             row = {
                                 "Source Column": src_col,
                                 "Target Column": tgt_col,
@@ -348,14 +361,31 @@ def compute_correlations_and_crosstabs(
                             correlation_rows.append(row)
 
                     # Mixed (Categorical ↔ Numeric)
-                    elif (is_categorical_column(src_vals) and is_numeric_dtype(tgt_vals)) or \
-                         (is_numeric_dtype(src_vals) and is_categorical_column(tgt_vals)):
-                        cat_vals, num_vals = (src_vals, tgt_vals) if is_categorical_column(src_vals) else (tgt_vals, src_vals)
+                    elif (
+                        is_categorical_column(src_vals) and is_numeric_dtype(tgt_vals)
+                    ) or (
+                        is_numeric_dtype(src_vals) and is_categorical_column(tgt_vals)
+                    ):
+                        cat_vals, num_vals = (
+                            (src_vals, tgt_vals)
+                            if is_categorical_column(src_vals)
+                            else (tgt_vals, src_vals)
+                        )
                         dummies = pd.get_dummies(cat_vals)
-                        max_abs_corr = dummies.corrwith(num_vals).abs().max() if not dummies.empty else 0.0
+                        max_abs_corr = (
+                            dummies.corrwith(num_vals).abs().max()
+                            if not dummies.empty
+                            else 0.0
+                        )
                         if verbose:
-                            print(f"[insights] {src_col} vs {tgt_col}: mixed max |r|={max_abs_corr:.4f}")
-                        if max_abs_corr is not None and np.isfinite(max_abs_corr) and max_abs_corr >= correlation_threshold:
+                            print(
+                                f"[insights] {src_col} vs {tgt_col}: mixed max |r|={max_abs_corr:.4f}"
+                            )
+                        if (
+                            max_abs_corr is not None
+                            and np.isfinite(max_abs_corr)
+                            and max_abs_corr >= correlation_threshold
+                        ):
                             row = {
                                 "Source Column": src_col,
                                 "Target Column": tgt_col,
@@ -372,7 +402,11 @@ def compute_correlations_and_crosstabs(
                     continue
 
     results_df = pd.DataFrame(correlation_rows)
-    results_df = results_df.sort_values(by="Correlation", ascending=False) if not results_df.empty else results_df
+    results_df = (
+        results_df.sort_values(by="Correlation", ascending=False)
+        if not results_df.empty
+        else results_df
+    )
     results_df.to_csv(correlations_output_path, index=False)
 
     print(f"✅ Correlation results → {correlations_output_path}")
@@ -382,6 +416,7 @@ def compute_correlations_and_crosstabs(
 
 
 from typing import Optional, Tuple, List, Dict
+
 
 # Insights directives now accept flexible header names (underscores/spaces not required), e.g.:
 #  INSIGHTS ENABLED, INSIGHTS_ENABLED, __INSIGHTS_ENABLED__ (case-insensitive)
@@ -393,6 +428,7 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
 
     Returns a dict with defaults when rows are missing.
     """
+
     def _norm_key_name(s: str) -> str:
         """Normalize directive key names.
         Accepts variants like:
@@ -408,6 +444,7 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
         # Collapse spaces and drop them
         s = re.sub(r"\s+", " ", s).strip().replace(" ", "")
         return s
+
     out = {
         "enabled": True,
         "threshold": 0.2,
@@ -424,13 +461,20 @@ def _parse_insights_from_config(config_df: pd.DataFrame) -> Dict[str, object]:
     lut = {}
     for _, r in rows.iterrows():
         key_norm = _norm_key_name(r["column"])
-        if key_norm in {"insightsenabled", "insightsthreshold", "insightssources", "insightstargets"}:
+        if key_norm in {
+            "insightsenabled",
+            "insightsthreshold",
+            "insightssources",
+            "insightstargets",
+        }:
             lut[key_norm] = r["value"]
 
     def _as_bool(s: str) -> Optional[bool]:
         s = (s or "").strip().lower()
-        if s in {"true", "yes"}: return True
-        if s in {"false", "no"}: return False
+        if s in {"true", "yes"}:
+            return True
+        if s in {"false", "no"}:
+            return False
         return None
 
     def _as_float(s: str) -> Optional[float]:
@@ -479,7 +523,9 @@ def run_basic_insights(
         print("[insights] Disabled by report_config (__INSIGHTS_ENABLED__=false).")
         return None
 
-    eff_threshold = threshold if threshold is not None else directives.get("threshold", 0.2)
+    eff_threshold = (
+        threshold if threshold is not None else directives.get("threshold", 0.2)
+    )
 
     def _make_unique(cols):
         seen = {}
@@ -495,18 +541,20 @@ def run_basic_insights(
         return out
 
     if dataframe.columns.duplicated().any():
-        print("[insights] Detected duplicate column names; de-duplicating for analysis.")
+        print(
+            "[insights] Detected duplicate column names; de-duplicating for analysis."
+        )
         df_work = dataframe.copy()
         df_work.columns = _make_unique(df_work.columns)
     else:
         df_work = dataframe
 
-
     source_candidates = directives.get("sources")
     target_candidates = directives.get("targets")
 
-
-    def _resolve_existing_columns(df: pd.DataFrame, candidates: list[str]) -> tuple[list[str], list[str]]:
+    def _resolve_existing_columns(
+        df: pd.DataFrame, candidates: list[str]
+    ) -> tuple[list[str], list[str]]:
         """Resolve candidate names to actual df columns using the SAME normalization
         as extract.load_csv (strip→lower→collapse spaces→underscores), while also
         stripping de-dup suffixes like '.1', '.2'. Returns (resolved_original_names, missing_candidates).
@@ -538,16 +586,26 @@ def run_basic_insights(
                 missing.append(name)
         return resolved, missing
 
-    available_sources, missing_sources = _resolve_existing_columns(df_work, source_candidates)
-    available_targets, missing_targets = _resolve_existing_columns(df_work, target_candidates)
+    available_sources, missing_sources = _resolve_existing_columns(
+        df_work, source_candidates
+    )
+    available_targets, missing_targets = _resolve_existing_columns(
+        df_work, target_candidates
+    )
 
     if missing_sources:
-        print(f"[insights] Missing source columns (after normalization): {missing_sources}")
+        print(
+            f"[insights] Missing source columns (after normalization): {missing_sources}"
+        )
     if missing_targets:
-        print(f"[insights] Missing target columns (after normalization): {missing_targets}")
+        print(
+            f"[insights] Missing target columns (after normalization): {missing_targets}"
+        )
 
     if not available_sources or not available_targets:
-        print("[insights] Skipping: no usable sources or targets after resolving names.")
+        print(
+            "[insights] Skipping: no usable sources or targets after resolving names."
+        )
         return None
 
     crosstab_path = f"{output_dir}/crosstabs_output.csv"
