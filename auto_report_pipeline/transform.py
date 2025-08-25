@@ -108,7 +108,7 @@ def generate_column_report(report_df: pd.DataFrame, config_df: pd.DataFrame) -> 
         cfg["delimiter"] = ""
 
     sections = []
-    sections.append([["Total rows", "", total_config]])
+    sections.append([["Total rows", "", total_rows]])
 
     for col_name in cfg["column"].unique():
         resolved_col = header_lookup.get(_norm_header(col_name))
@@ -508,8 +508,9 @@ def run_basic_insights(
 
     def _resolve_existing_columns(df: pd.DataFrame, candidates: list[str]) -> tuple[list[str], list[str]]:
         """Resolve candidate names to actual df columns using the SAME normalization
-        as extract.load_csv: strip→lower→collapse spaces→underscores.
-        Returns (resolved_original_names, missing_candidates).
+        as extract.load_csv (strip→lower→collapse spaces→underscores), while also
+        stripping de-dup suffixes like '.1', '.2'. Returns (resolved_original_names, missing_candidates).
+        If multiple columns match a single candidate (due to duplicates), ALL are returned.
         """
         if not candidates:
             return [], []
@@ -517,19 +518,22 @@ def run_basic_insights(
         def _norm(s: str) -> str:
             s = str(s).strip().lower()
             s = re.sub(r"\s+", "_", s)
+            # strip de-dup suffix like '.1', '.2' appended earlier
+            s = re.sub(r"\.(?:\d+)$", "", s)
             return s
 
-        lookup = {}
-        for col in df_work.columns:
+        # Build a lookup from normalized name -> list of actual column names
+        lookup: dict[str, list[str]] = {}
+        for col in df.columns:
             key = _norm(col)
-            if key not in lookup:
-                lookup[key] = col
+            lookup.setdefault(key, []).append(col)
 
-        resolved, missing = [], []
+        resolved: list[str] = []
+        missing: list[str] = []
         for name in candidates:
             key = _norm(name)
             if key in lookup:
-                resolved.append(lookup[key])
+                resolved.extend(lookup[key])
             else:
                 missing.append(name)
         return resolved, missing
