@@ -1,51 +1,67 @@
-# mix up not to be used alonside any present modules
-import logging
-import argparse
+# Not current for use with transform, utils, report_generator, extract
+import os
+import numpy as np
+import pandas as pd
 
-from etl.logger import setup_logger
-from etl.extract import extract_data
-from etl.transform import transform_data, validate_schema
-from etl.load import load_data
-from config.config import (
-    DB_PATH,
-    DATA_PATH,
-    REQUIRED_COLUMNS,
-    FILTER_COLUMN,
-    FILTER_VALUE,
-    TABLE_NAME,
-    TABLE_SCHEMA,
+# ETL imports
+from auto_report_pipeline.extract import load_csv
+from auto_report_pipeline.transform import generate_column_report
+from auto_report_pipeline.report_generator import assemble_report, save_report
+
+# Analyzer imports
+from csv_analyzer.correlation_scanner import (
+    analyze_vendor_column,
+    export_vendor_stats_to_csv,
+    compare_source_editor_columns,
 )
+from csv_analyzer.pop import run_popularity_logistic
+from csv_analyzer.vendor_list import vendors_list
 
-# Coupled with etl dir
 
+def pipeline_main(
+    raw_csv_path,
+    report_config_path,
+    analytics_report_path,
+    vendor_stats_path,
+    correlation_output_path,
+):
+    # ─── 1) ETL: generate Analytics_Report.csv ─────────────────────────────
+    df = load_csv(raw_csv_path)
+    cfg = load_csv(report_config_path)
+    report_blocks = generate_column_report(df, cfg)
+    analytics_df = assemble_report(report_blocks)
+    save_report(analytics_df, analytics_report_path)
 
-def run_etl(input_path=None, output_path=None):
-    setup_logger()
-    try:
-        df = extract_data(input_path or DATA_PATH)
-        validate_schema(df, REQUIRED_COLUMNS)
-        df = transform_data(
-            df,
-            required_cols=REQUIRED_COLUMNS,
-            filter_col=FILTER_COLUMN,
-            filter_value=FILTER_VALUE,
-        )
+    # ─── 2) Vendor Analysis ────────────────────────────────────────────────
+    vendor_counts, vendor_dups, vendor_dup_rows = analyze_vendor_column(
+        df, "vendors", vendors_list
+    )
+    export_vendor_stats_to_csv(
+        vendor_counts, vendor_dups, vendor_dup_rows, vendor_stats_path
+    )
 
-        if df.empty:
-            logging.warning("No data to load after transformation")
-            return
+    # ─── 3) Correlation Scanning ───────────────────────────────────────────
+    # You’ll need to define your source/editor columns here, e.g.:
+    source_cols = ["country", "modern_category", "popularity"]
+    editor_cols = ["is_poi_also_a_tourist_attraction", "are_hours_seasonal"]
+    corr_df = compare_source_editor_columns(
+        df, source_cols, editor_cols, threshold=0.2, verbose=True
+    )
+    corr_df.to_csv(correlation_output_path, index=False)
+    print(f"✅ Correlations saved to {correlation_output_path}")
 
-        load_data(df, output_path or DB_PATH, TABLE_NAME, TABLE_SCHEMA)
-        logging.info("ETL pipeline ran successfully.")
-
-    except Exception as e:
-        logging.error(f"ETL pipeline failed: {e}")
+    # ─── 4) Popularity Logistic Regression ─────────────────────────────────
+    model, odds, prob_df = run_popularity_logistic(df)
+    print(model.summary())
+    print("\nOdds Ratios:\n", odds)
+    print("\nPredicted probabilities:\n", prob_df)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", help="Path to input CSV")
-    parser.add_argument("--output", help="Path to SQLite DB")
-    args = parser.parse_args()
-
-    run_etl(args.input, args.output)
+    pipeline_main(
+        raw_csv_path="csv_analyzer/input_csv/Test_Report.csv",
+        report_config_path="auto_report_pipeline/csv_files/report_config.csv",
+        analytics_report_path="auto_report_pipeline/csv_files/Analytics_Report.csv",
+        vendor_stats_path="csv_analyzer/output_data/vendor_stats.csv",
+        correlation_output_path="csv_analyzer/output_data/correlation_results.csv",
+    )

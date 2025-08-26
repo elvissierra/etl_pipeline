@@ -1,5 +1,0 @@
-Source Column,Editor Column,Correlation,Method,Type
-Country,Is POI also a tourist attraction?,0.2362,Cramér's V,N/A
-Country,Are Hours Seasonal?,0.224,Cramér's V,N/A
-Modern Category,Are Hours Seasonal?,0.203,Cramér's V,N/A
-Country,Are hours visiting hours for tourists?,0.2004,Cramér's V,N/A
